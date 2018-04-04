@@ -70,11 +70,13 @@ func main() {
 			}
 		}
 		c.JSON(200, gin.H{
-			"items":     lites,
-			"page":      page,
-			"size":      size,
-			"totalItem": total,
-			"totalPage": total/size + 1,
+			"items": lites,
+			"paging": gin.H{
+				"page":      page,
+				"size":      size,
+				"totalPage": total/size + 1,
+				"totalItem": total,
+			},
 		})
 	})
 	g.GET("/search", func(c *gin.Context) {
@@ -87,12 +89,16 @@ func main() {
 		if err != nil {
 			size = 100
 		}
-		total, err := movies.Count()
+		result := []Movie{}
+		found := movies.Find(bson.M{"title": bson.M{"$regex": ".*" + q + ".*", "$options": "-i"}})
+		total, err := found.Count()
 		if err != nil {
 			panic(err)
 		}
-		result := []Movie{}
-		movies.Find(bson.M{"title": bson.M{"$regex": ".*" + q + ".*", "$options": "-i"}}).Skip((page - 1) * size).Limit(size).All(&result)
+		err = found.Skip((page - 1) * size).Limit(size).All(&result)
+		if err != nil {
+			panic(err)
+		}
 		lites := make([]MovieLite, len(result))
 		for i, e := range result {
 			lites[i] = MovieLite{
@@ -102,12 +108,15 @@ func main() {
 				ReleaseDate: e.ReleaseDate,
 			}
 		}
+
 		c.JSON(200, gin.H{
-			"items":     lites,
-			"page":      page,
-			"size":      size,
-			"totalItem": total,
-			"totalPage": total/size + 1,
+			"items": lites,
+			"paging": gin.H{
+				"page":      page,
+				"size":      size,
+				"totalPage": total/size + 1,
+				"totalItem": total,
+			},
 		})
 	})
 	g.GET("/movie/:id", func(c *gin.Context) {
